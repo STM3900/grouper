@@ -1,10 +1,11 @@
 export const state = () => ({
   status: null,
-  username: "",
 
   apiResponse: null,
 
+  user: "",
   allUsers: [],
+  allUsersFront: [],
   myGroup: "",
   isLogged: false,
   isAdmin: false,
@@ -17,14 +18,17 @@ export const getters = {
   getStatus: (state) => {
     return state.status;
   },
-  getUsername: (state) => {
-    return state.username;
+  getUser: (state) => {
+    return state.user;
   },
   getApiResponse: (state) => {
     return state.apiResponse;
   },
   getAllUsers: (state) => {
     return state.allUsers;
+  },
+  getAllUsersFront: (state) => {
+    return state.allUsersFront;
   },
   getMyGroup: (state) => {
     return state.myGroup;
@@ -34,6 +38,12 @@ export const getters = {
   },
   getGroupList: (state) => {
     return state.groupList;
+  },
+  getAvailableGroups: (state) => {
+    return state.groupList.filter((e) => e.usersInGroup.length > 1);
+  },
+  getCreatedGroups: (state) => {
+    return state.groupList.filter((e) => e.nbUserCurrent > 0);
   },
   getAdminConfig: (state) => {
     return state.adminConfig;
@@ -53,14 +63,20 @@ export const mutations = {
   SET_STATUS(state, status) {
     state.status = status;
   },
-  SET_USERNAME(state, username) {
-    state.username = username;
-  },
   SET_API_RESPONSE(state, apiResponse) {
     state.apiResponse = apiResponse;
   },
+  SET_USER(state, user) {
+    state.user = user;
+  },
   SET_ALL_USERS(state, allUsers) {
     state.allUsers = allUsers;
+  },
+  SET_ALL_USERS_FRONT(state, allUsersFront) {
+    state.allUsersFront = allUsersFront;
+  },
+  ADD_USER_FRONT(state, user) {
+    state.allUsersFront.push(user);
   },
   SET_MY_GROUP(state, myGroup) {
     state.myGroup = myGroup;
@@ -87,14 +103,27 @@ export const actions = {
     context.commit("SET_STATUS", status);
   },
 
+  authUser(context, username) {
+    context.commit("SET_INVITE_LINK", "");
+    try {
+      context.dispatch("register", username);
+    } catch (e) {
+      context.dispatch("login", username);
+    }
+  },
+
+  /* api calls */
+
   // register an user and set variable accordingly
   register(context, username) {
     this.$axios
       .post(`http://localhost:5000/v1/grouper/register/${username}`)
       .then((response) => {
+        console.log(response);
         context.commit("SET_IS_LOGGED", true);
         context.commit("SET_IS_ADMIN", false);
-        context.commit("SET_USERNAME", username);
+        context.commit("SET_USER", username);
+        context.commit("ADD_USER_FRONT", username);
       })
       .catch((error) => {
         console.log(error);
@@ -116,11 +145,20 @@ export const actions = {
   },
 
   // quit the group
-  quitMyGroup(context, username) {
+  quitMyGroup(context, payload) {
     this.$axios
-      .post(`http://localhost:5000/v1/grouper/group/quitmygroup/${username}`)
+      .post(
+        `http://localhost:5000/v1/grouper/group/quitmygroup/${payload.name}`,
+        {
+          username: payload.username,
+        },
+        {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      )
       .then((response) => {
-        // TODO : inform user left group
         console.log("you have left the group");
         context.dispatch("getAllUsers");
         context.dispatch("getGroupListApi");
@@ -130,10 +168,10 @@ export const actions = {
       });
   },
 
-  // Login as admin only
-  login(context) {
+  // Login
+  login(context, username) {
     this.$axios
-      .post(`http://localhost:5000/v1/grouper/login/admin`, {
+      .post(`http://localhost:5000/v1/grouper/login/${username}`, {
         headers: {
           "Access-Control-Allow-Origin": "*",
         },
@@ -141,9 +179,16 @@ export const actions = {
       .then((response) => {
         console.log(response);
 
-        context.commit("SET_IS_LOGGED", true);
-        context.commit("SET_IS_ADMIN", true);
-        this.$router.push("/admin");
+        if (username == "admin") {
+          context.commit("SET_IS_LOGGED", true);
+          context.commit("SET_IS_ADMIN", true);
+          context.commit("SET_USER", "admin");
+          this.$router.push("/admin");
+        } else {
+          context.commit("SET_IS_LOGGED", true);
+          context.commit("SET_IS_ADMIN", false);
+          context.commit("SET_USER", username);
+        }
       })
       .catch((error) => {
         console.log(error);
@@ -181,9 +226,17 @@ export const actions = {
   // Create a group
   createGroup(context, username) {
     this.$axios
-      .post("http://localhost:5000/v1/grouper/group/create", {
-        username: username,
-      })
+      .post(
+        "http://localhost:5000/v1/grouper/group/create",
+        {
+          username: username,
+        },
+        {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      )
       .then((response) => {
         console.log(response);
         context.dispatch("getAllUsers");
@@ -199,7 +252,15 @@ export const actions = {
   joinGroupLink(context, payload) {
     this.$axios
       .post(
-        `http://localhost:5000/v1/grouper/group/${payload.groupName}/${payload.peopleWhoInvit}/join`
+        `http://localhost:5000/v1${payload.url}`,
+        {
+          username: payload.username,
+        },
+        {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
       )
       .then((response) => {
         console.log(response);
@@ -245,12 +306,57 @@ export const actions = {
       });
   },
 
+  // Get current user
+  getUserApi(context) {
+    this.$axios
+      .get("http://localhost:5000/v1/grouper/getUser", {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      })
+      .then((response) => {
+        const name = response.data;
+        if (name) {
+          context.commit("SET_IS_LOGGED", true);
+          context.commit("SET_USER", name);
+          if (response.data == "admin") {
+            context.commit("SET_IS_ADMIN", true);
+          }
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  },
+
   // get all users that are not in group
   getAllUsers(context) {
     this.$axios
-      .get("http://localhost:5000/v1/grouper/users/getall")
+      .get("http://localhost:5000/v1/grouper/users/getall", {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      })
       .then((response) => {
         context.commit("SET_ALL_USERS", response.data);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  },
+
+  // logOut user and reset user state
+  logOut(context) {
+    this.$axios
+      .get("http://localhost:5000/v1/grouper/logout", {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      })
+      .then((response) => {
+        context.commit("SET_USER", "");
+        context.commit("SET_IS_LOGGED", false);
+        context.commit("SET_IS_ADMIN", false);
       })
       .catch((error) => {
         console.log(error);
