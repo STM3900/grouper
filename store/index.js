@@ -38,8 +38,11 @@ export const getters = {
   getAdminConfig: (state) => {
     return state.adminConfig;
   },
+  getIfAdminConfig: (state) => {
+    return !!state.adminConfig.nbUsers;
+  },
   getIsAdmin: (state) => {
-    return state.adminConfig;
+    return state.isAdmin;
   },
   getInviteLink: (state) => {
     return state.inviteLink;
@@ -105,7 +108,7 @@ export const actions = {
         username: username,
       })
       .then((response) => {
-        context.commit("SET_MY_GROUP", response);
+        context.commit("SET_MY_GROUP", response.data);
       })
       .catch((error) => {
         console.log(error);
@@ -120,7 +123,7 @@ export const actions = {
         // TODO : inform user left group
         console.log("you have left the group");
         context.dispatch("getAllUsers");
-        context.dispatch("getGroupList");
+        context.dispatch("getGroupListApi");
       })
       .catch((error) => {
         console.log(error);
@@ -128,14 +131,19 @@ export const actions = {
   },
 
   // Login as admin only
-  login(context, username) {
+  login(context) {
     this.$axios
-      .post(`http://localhost:5000/v1/grouper/login/${username}`)
+      .post(`http://localhost:5000/v1/grouper/login/admin`, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      })
       .then((response) => {
         console.log(response);
 
         context.commit("SET_IS_LOGGED", true);
-        context.commit("SET_ADMIN_CONFIG", true);
+        context.commit("SET_IS_ADMIN", true);
+        this.$router.push("/admin");
       })
       .catch((error) => {
         console.log(error);
@@ -145,17 +153,25 @@ export const actions = {
   // Create admin config
   createConfig(context, payload) {
     this.$axios
-      .post("http://localhost:5000/v1/grouper/groups/admin", {
-        nbUsers: payload.nbUsers,
-        nbGroups: payload.nbGroups,
-      })
+      .post(
+        "http://localhost:5000/v1/grouper/groups/admin",
+        { nbUsers: +payload.nbUsers, nbGroups: +payload.nbGroups },
+        {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      )
       .then((response) => {
         console.log(response);
+
         context.commit("SET_ADMIN_CONFIG", {
           nbUsers: payload.nbUsers,
           nbGroups: payload.nbGroups,
         });
-        context.dispatch("getGroupList");
+        context.dispatch("getGroupListApi");
+
+        this.$router.push("/");
       })
       .catch((error) => {
         console.log(error);
@@ -171,8 +187,8 @@ export const actions = {
       .then((response) => {
         console.log(response);
         context.dispatch("getAllUsers");
-        context.commit("SET_INVITE_LINK", response);
-        context.dispatch("getGroupList");
+        context.commit("SET_INVITE_LINK", response.data);
+        context.dispatch("getGroupListApi");
       })
       .catch((error) => {
         console.log(error);
@@ -188,19 +204,25 @@ export const actions = {
       .then((response) => {
         console.log(response);
         context.dispatch("getAllUsers");
-        context.dispatch("getGroupList");
+        context.dispatch("getGroupListApi");
       })
       .catch((error) => {
         console.log(error);
       });
   },
 
-  // Get requests
-  getGroupList(context) {
+  //* Get requests
+
+  // Return list of all groups
+  getGroupListApi(context) {
     this.$axios
-      .post(`localhost:5000/v1/grouper/group/list`)
+      .get("http://localhost:5000/v1/grouper/group/list", {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      })
       .then((response) => {
-        context.commit("SET_GROUP_LIST", response);
+        context.commit("SET_GROUP_LIST", response.data);
       })
       .catch((error) => {
         console.log(error);
@@ -208,11 +230,15 @@ export const actions = {
   },
 
   // Get admin config
-  getAdminConfig(context) {
+  getAdminConfigApi(context) {
     this.$axios
-      .post(`localhost:5000/v1/grouper/admin/getconfig`)
+      .get("http://localhost:5000/v1/grouper/admin/getconfig", {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      })
       .then((response) => {
-        context.commit("SET_ADMIN_CONFIG", response);
+        context.commit("SET_ADMIN_CONFIG", response.data);
       })
       .catch((error) => {
         console.log(error);
@@ -224,7 +250,7 @@ export const actions = {
     this.$axios
       .get("http://localhost:5000/v1/grouper/users/getall")
       .then((response) => {
-        context.commit("SET_ALL_USERS", response);
+        context.commit("SET_ALL_USERS", response.data);
       })
       .catch((error) => {
         console.log(error);

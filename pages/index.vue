@@ -1,33 +1,23 @@
 <template>
   <div>
-    <article v-if="!getStatus" class="auth">
-      <h1>Bonjour, qui êtes-vous ?</h1>
-      <button @click="changeStatus('user')">Utilisateur</button>
-      <button
-        @click="
-          changeStatus('admin');
-          $router.push('/admin');
-        "
-      >
-        Admin
-      </button>
-    </article>
-    <article v-else-if="getStatus == 'user'" class="main">
-      <h1>Grouper</h1>
-      <h2>Liste des groupes</h2>
-      <ul>
-        <li v-for="i in 3" :key="i">
-          <NuxtLink :to="`/groupes/${i}`">Groupe {{ i }}</NuxtLink>
-        </li>
-      </ul>
-      <button>Créer un groupe</button>
-      <button>Rejoindre aléatoirement un groupe</button>
-      <button @click="changeStatus(null)">Se déconnecter</button>
-    </article>
-    <article v-else-if="getStatus == 'admin'" class="admin">
-      <p>Vous êtes actuellement connecté en tant qu'administrateur</p>
-      <button @click="changeStatus('user')">Passer en mode utilisateur</button>
-      <button @click="changeStatus(null)">Se déconnecter</button>
+    <h1>Grouper - un site de groupes</h1>
+    <p>Bonjour, veuillez vous identifier</p>
+    <p>{{ getIsAdmin }}</p>
+    <button @click="loginAsAdmin" v-if="!getIfAdminConfig">Admin</button>
+    <button v-else>User</button>
+    <article class="infos">
+      <section v-if="getAdminConfig.nbUsers && getAdminConfig.nbGroups">
+        <p>Nombre de personnes max : {{ getAdminConfig.nbUsers }}</p>
+        <p>Nombres de personnes par groupe : {{ getAdminConfig.nbGroups }}</p>
+      </section>
+      <section v-if="getGroupList.length > 0">
+        <ul v-for="(item, i) in getGroupList" :key="i">
+          <li>{{ item.name }}</li>
+          <li>{{ item.nbMax }}</li>
+          <li>{{ item.nbUserCurrent }}</li>
+          <li>{{ item.usersInGroup }}</li>
+        </ul>
+      </section>
     </article>
   </div>
 </template>
@@ -37,13 +27,41 @@ import { mapGetters, mapActions } from "vuex";
 
 export default {
   computed: {
-    ...mapGetters(["getStatus"]),
-  },
-  methods: {
-    ...mapActions(["changeStatus"]),
+    ...mapGetters([
+      "getStatus",
+      "getAdminConfig",
+      "getIfAdminConfig",
+      "getIsAdmin",
+      "getGroupList",
+    ]),
   },
   data() {
     return {};
+  },
+  mounted() {
+    if (!this.getIfAdminConfig) {
+      try {
+        this.getAdminConfigApi();
+        this.getGroupListApi();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  },
+  methods: {
+    ...mapActions([
+      "changeStatus",
+      "login",
+      "getAdminConfigApi",
+      "getGroupListApi",
+    ]),
+    loginAsAdmin() {
+      if (!this.getIsAdmin) {
+        this.login();
+      } else {
+        this.$router.push("/admin");
+      }
+    },
   },
 };
 </script>
