@@ -1,5 +1,5 @@
 <template>
-  <footer>Footer</footer>
+  <footer>Front réalisé par Théo Migeat, API par Joël Wiki</footer>
 </template>
 
 <script>

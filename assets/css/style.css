@@ -1,8 +1,66 @@
 body {
-  margin: 0;
+  margin-right: 20%;
+  margin-left: 20%;
   font-family: "Open Sans", sans-serif;
+}
+
+main {
+  min-height: 80vh;
 }
 
 h1 {
   font-family: "Asap", sans-serif;
+  margin-bottom: 50px;
+}
+
+button {
+  font-family: "Open Sans", sans-serif;
+
+  background: none;
+  transition: 0.3s;
+  padding: 8px 15px;
+
+  border-radius: 5px;
+  border: none;
+  border: solid 1px;
+
+  margin-bottom: 10px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  transform: scale(0.99);
+}
+
+button:not(:active):not(:disabled):hover {
+  cursor: pointer;
+  transform: scale(0.99);
+}
+
+button:active {
+  transform: scale(0.93);
+}
+
+.form-container {
+  position: relative;
+}
+
+input {
+  font-family: "Open Sans", sans-serif;
+
+  /* haut | droit | bas | gauche */
+  padding: 5px 2px 2px 2px;
+
+  font-size: 16px;
+  border: none;
+  border-bottom: solid 1px black;
+
+  outline: none;
+}
+
+label {
+  font-family: "Quicksand", sans-serif;
+  position: absolute;
+  top: -11px;
+  font-size: 12px;
 }
