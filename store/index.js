@@ -1,10 +1,16 @@
 export const state = () => ({
   status: null,
   username: "",
+
   apiResponse: null,
+
   allUsers: [],
   myGroup: "",
   isLogged: false,
+  isAdmin: false,
+  groupList: [],
+  adminConfig: {},
+  inviteLink: "",
 });
 
 export const getters = {
@@ -26,6 +32,18 @@ export const getters = {
   getIsLogged: (state) => {
     return state.isLogged;
   },
+  getGroupList: (state) => {
+    return state.groupList;
+  },
+  getAdminConfig: (state) => {
+    return state.adminConfig;
+  },
+  getIsAdmin: (state) => {
+    return state.adminConfig;
+  },
+  getInviteLink: (state) => {
+    return state.inviteLink;
+  },
 };
 
 export const mutations = {
@@ -45,7 +63,19 @@ export const mutations = {
     state.myGroup = myGroup;
   },
   SET_IS_LOGGED(state, isLogged) {
-    state.myGroup = isLogged;
+    state.isLogged = isLogged;
+  },
+  SET_GROUP_LIST(state, groupList) {
+    state.groupList = groupList;
+  },
+  SET_ADMIN_CONFIG(state, adminConfig) {
+    state.adminConfig = adminConfig;
+  },
+  SET_IS_ADMIN(state, isAdmin) {
+    state.isAdmin = isAdmin;
+  },
+  SET_INVITE_LINK(state, inviteLink) {
+    state.inviteLink = inviteLink;
   },
 };
 
@@ -54,29 +84,21 @@ export const actions = {
     context.commit("SET_STATUS", status);
   },
 
+  // register an user and set variable accordingly
   register(context, username) {
     this.$axios
       .post(`http://localhost:5000/v1/grouper/register/${username}`)
       .then((response) => {
-        context.commit("SET_API_RESPONSE", response);
+        context.commit("SET_IS_LOGGED", true);
+        context.commit("SET_IS_ADMIN", false);
+        context.commit("SET_USERNAME", username);
       })
       .catch((error) => {
         console.log(error);
       });
   },
 
-  getAllUsers(context) {
-    this.$axios
-      .get("http://localhost:5000/v1/grouper/users/getall")
-      .then((response) => {
-        // TODO do verification if save state is equal to api response
-        context.commit("SET_ALL_USERS", response);
-      })
-      .catch((error) => {
-        console.log(error);
-      });
-  },
-
+  // get info of my group
   getMyGroup(context, username) {
     this.$axios
       .post("http://localhost:5000/v1/grouper/users/getmygroup", {
@@ -90,31 +112,37 @@ export const actions = {
       });
   },
 
+  // quit the group
   quitMyGroup(context, username) {
     this.$axios
       .post(`http://localhost:5000/v1/grouper/group/quitmygroup/${username}`)
       .then((response) => {
+        // TODO : inform user left group
         console.log("you have left the group");
+        context.dispatch("getAllUsers");
+        context.dispatch("getGroupList");
       })
       .catch((error) => {
         console.log(error);
       });
   },
 
+  // Login as admin only
   login(context, username) {
     this.$axios
       .post(`http://localhost:5000/v1/grouper/login/${username}`)
       .then((response) => {
-        // TODO : Gérer les erreurs
         console.log(response);
 
         context.commit("SET_IS_LOGGED", true);
+        context.commit("SET_ADMIN_CONFIG", true);
       })
       .catch((error) => {
         console.log(error);
       });
   },
 
+  // Create admin config
   createConfig(context, payload) {
     this.$axios
       .post("http://localhost:5000/v1/grouper/groups/admin", {
@@ -122,35 +150,81 @@ export const actions = {
         nbGroups: payload.nbGroups,
       })
       .then((response) => {
-        // TODO : Gérer les erreurs et la réponse
+        console.log(response);
+        context.commit("SET_ADMIN_CONFIG", {
+          nbUsers: payload.nbUsers,
+          nbGroups: payload.nbGroups,
+        });
+        context.dispatch("getGroupList");
       })
       .catch((error) => {
         console.log(error);
       });
   },
 
+  // Create a group
   createGroup(context, username) {
     this.$axios
       .post("http://localhost:5000/v1/grouper/group/create", {
         username: username,
       })
       .then((response) => {
-        // TODO : Gérer les erreurs et la réponse
         console.log(response);
+        context.dispatch("getAllUsers");
+        context.commit("SET_INVITE_LINK", response);
+        context.dispatch("getGroupList");
       })
       .catch((error) => {
         console.log(error);
       });
   },
 
+  // Join group with a link
   joinGroupLink(context, payload) {
     this.$axios
       .post(
         `http://localhost:5000/v1/grouper/group/${payload.groupName}/${payload.peopleWhoInvit}/join`
       )
       .then((response) => {
-        // TODO : Gérer les erreurs et la réponse
         console.log(response);
+        context.dispatch("getAllUsers");
+        context.dispatch("getGroupList");
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  },
+
+  // Get requests
+  getGroupList(context) {
+    this.$axios
+      .post(`localhost:5000/v1/grouper/group/list`)
+      .then((response) => {
+        context.commit("SET_GROUP_LIST", response);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  },
+
+  // Get admin config
+  getAdminConfig(context) {
+    this.$axios
+      .post(`localhost:5000/v1/grouper/admin/getconfig`)
+      .then((response) => {
+        context.commit("SET_ADMIN_CONFIG", response);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  },
+
+  // get all users that are not in group
+  getAllUsers(context) {
+    this.$axios
+      .get("http://localhost:5000/v1/grouper/users/getall")
+      .then((response) => {
+        context.commit("SET_ALL_USERS", response);
       })
       .catch((error) => {
         console.log(error);
